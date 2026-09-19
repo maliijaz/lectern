@@ -1,0 +1,112 @@
+# The suite runs against a stub model provider, so CI needs no GPU, no Ollama and no
+# network. That is deliberate: a test suite that cannot run on a free runner is a test
+# suite that stops being run.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor the project claims to support, and the version it is developed on.
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install
+        # No [ingest] extras: they pull PyTorch, which is gigabytes and adds nothing the
+        # tests need. Running without them also proves the app still works when a user
+        # has not installed them — the lite deployment depends on exactly that.
+        run: pip install -e "./backend[dev]"
+
+      - name: Lint
+        run: |
+          cd backend
+          python -m ruff check app
+          python -m ruff format --check app
+
+      - name: Test
+        run: |
+          cd backend
+          python -m pytest app/tests -q
+
+  frontend:
+    name: Web UI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  docker:
+    name: Lite image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the image the free tier deploys
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-args: EXTRAS=
+          push: false
+          load: true
+          tags: lectern:lite
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Prove it starts and serves
+        # A Dockerfile that builds but does not boot is not a working deployment. This
+        # also checks that the container honours an assigned $PORT, which is how every
+        # hosting platform tells an app where to listen.
+        run: |
+          docker run -d --name ta -e PORT=7860 -e LECTERN_LLM_PROVIDER=fake -p 7860:7860 \
+            lectern:lite
+          for i in $(seq 1 45); do
+            if curl -fsS http://localhost:7860/health >/dev/null 2>&1; then
+              echo "healthy after ${i}s"
+              curl -s http://localhost:7860/health
+              docker rm -f ta
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::the container never became healthy"
+          docker logs ta
+          exit 1
