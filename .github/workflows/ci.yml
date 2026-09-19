@@ -72,6 +72,66 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+  scripts:
+    # install.sh and install.ps1 are the front door now - a one-line command in the
+    # README that strangers paste into a shell. A syntax error in either is not a
+    # failing test, it is everybody's first impression failing. Neither is touched by
+    # the test suite, so they get checked here instead.
+    name: Install scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell scripts are valid
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+          bash -n install.sh
+          bash -n tasks.sh
+          shellcheck -S warning install.sh tasks.sh
+
+      - name: Shell scripts are executable, and free of CRLF
+        run: |
+          for f in install.sh tasks.sh; do
+            if [ ! -x "$f" ]; then
+              echo "$f is not executable: git update-index --chmod=+x $f"
+              exit 1
+            fi
+            # A CRLF here fails inside a Linux shell with an error that names the wrong
+            # thing entirely ("bad interpreter"), so catch it at the source.
+            if grep -qU $'\r' "$f"; then
+              echo "$f has CRLF line endings; .gitattributes should force LF"
+              exit 1
+            fi
+          done
+          echo ok
+
+      - name: PowerShell scripts parse, and are pure ASCII
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($f in @('install.ps1', 'tasks.ps1')) {
+            $errs = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $f), [ref]$null, [ref]$errs)
+            if ($errs.Count) {
+              $failed = $true
+              $errs | ForEach-Object { Write-Host "${f}: $($_.Message)" }
+            }
+            # Windows PowerShell 5.1 reads a BOM-less .ps1 as ANSI, so one non-ASCII
+            # character becomes a parse error on exactly the machines these target -
+            # which pwsh on Linux will not reproduce. Check the bytes instead.
+            $n = 0
+            foreach ($line in [System.IO.File]::ReadAllLines((Resolve-Path $f))) {
+              $n++
+              if ($line.ToCharArray() | Where-Object { [int]$_ -gt 127 }) {
+                $failed = $true
+                Write-Host "${f}:${n}: non-ASCII character"
+              }
+            }
+          }
+          if ($failed) { exit 1 }
+          Write-Host ok
+
   docker:
     name: Lite image
     runs-on: ubuntu-latest
