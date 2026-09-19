@@ -47,7 +47,7 @@ RUNTIME_OVERRIDABLE: frozenset[str] = frozenset(
 )
 
 # Settings whose values must never be echoed back to a client in full.
-SECRET_FIELDS: frozenset[str] = frozenset({"llm_api_key"})
+SECRET_FIELDS: frozenset[str] = frozenset({"llm_api_key", "access_key"})
 
 
 class Settings(BaseSettings):
@@ -69,6 +69,16 @@ class Settings(BaseSettings):
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
     )
+
+    #: A shared secret that must be presented before the app will answer. Empty means
+    #: no gate, which is right for localhost and wrong for anything else.
+    #:
+    #: This exists because the app is worth exposing: a Cloudflare tunnel over a machine
+    #: with a GPU gives the full product, and a free hosting tier gives a demo. Both hand
+    #: out a public URL, and without a gate that URL lets anyone spend your GPU time or
+    #: your API quota. It is deliberately a single shared secret rather than user
+    #: accounts - the thing being protected is a teacher's own install, not a service.
+    access_key: str = ""
 
     # ---------- language model ----------
     llm_provider: LLMProviderName = "ollama"

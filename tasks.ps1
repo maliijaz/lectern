@@ -15,7 +15,7 @@
 #>
 param(
   [Parameter(Position = 0)]
-  [ValidateSet("setup", "dev", "serve", "test", "lint", "build", "clean", "gpu", "ollama", "help")]
+  [ValidateSet("setup", "dev", "serve", "share", "test", "lint", "build", "clean", "gpu", "ollama", "help")]
   [string]$Task = "help"
 )
 
@@ -167,6 +167,54 @@ switch ($Task) {
     try { & $Python -m uvicorn app.main:app --port 8000 } finally { Pop-Location }
   }
 
+  "share" {
+    # Puts this machine's Lectern on a public HTTPS URL through a Cloudflare quick
+    # tunnel: no account, no card, no port forwarding, no signup. Unlike a free hosting
+    # tier this is the whole product - your GPU, your documents, your files kept on
+    # disk - for as long as you leave it running.
+    #
+    # The URL is genuinely public and the app has no login, so this refuses to start
+    # without an access key and generates one if you did not set it.
+    Assert-Venv
+    if (-not (Get-Command cloudflared -ErrorAction SilentlyContinue)) {
+      Write-Warn "cloudflared is not installed. Install it with:"
+      Write-Host "   winget install --id Cloudflare.cloudflared"
+      exit 1
+    }
+
+    if (-not $env:LECTERN_ACCESS_KEY) {
+      $bytes = New-Object byte[] 18
+      [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+      $env:LECTERN_ACCESS_KEY = ([Convert]::ToBase64String($bytes)) -replace "[+/=]", ""
+      Write-Warn "No LECTERN_ACCESS_KEY was set, so one was generated for this session."
+    }
+    Write-Ok ("access key: " + $env:LECTERN_ACCESS_KEY)
+    Write-Host ("   Share the tunnel URL with ?key=" + $env:LECTERN_ACCESS_KEY + " on the end.")
+    Write-Host "   It is swapped for a cookie on first load, so it is sent only once."
+
+    if (-not (Test-Path (Join-Path $Root "frontend/dist/index.html"))) {
+      Write-Step "Building the web UI first"
+      Push-Location (Join-Path $Root "frontend")
+      try { npm run build } finally { Pop-Location }
+    }
+
+    Write-Step "Starting Lectern on 127.0.0.1:8000"
+    $api = Start-Process -FilePath $Python -PassThru -NoNewWindow `
+      -WorkingDirectory (Join-Path $Root "backend") `
+      -ArgumentList "-m", "uvicorn", "app.main:app", "--port", "8000"
+    try {
+      Start-Sleep -Seconds 3
+      Write-Step "Opening the tunnel - the trycloudflare.com URL below is your address"
+      cloudflared tunnel --url http://127.0.0.1:8000
+    }
+    finally {
+      if ($api -and -not $api.HasExited) {
+        Stop-Process -Id $api.Id -Force -ErrorAction SilentlyContinue
+      }
+      Write-Ok "stopped - that URL is now dead"
+    }
+  }
+
   "test" {
     Assert-Venv
     Push-Location (Join-Path $Root "backend")
@@ -248,6 +296,7 @@ Lectern
   .\tasks.ps1 setup     Install everything (uses the GPU build of PyTorch when possible)
   .\tasks.ps1 dev       Run the API and the web UI with hot reload
   .\tasks.ps1 serve     Run the built app on http://127.0.0.1:8000
+  .\tasks.ps1 share     Put this machine on a public URL via a Cloudflare tunnel
   .\tasks.ps1 build     Build the web UI for production
   .\tasks.ps1 test      Run the test suite
   .\tasks.ps1 lint      Check formatting and types
@@ -256,7 +305,7 @@ Lectern
   .\tasks.ps1 clean     Remove build output (leaves your data alone)
 
 Command line:
-  .venv\Scripts\ta --help
+  .venv\Scripts\lectern --help
 
 "@ -ForegroundColor Cyan
   }

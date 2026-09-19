@@ -144,29 +144,68 @@ docker compose up                              # uses an Ollama on your host
 docker compose --profile with-ollama up        # brings its own Ollama
 ```
 
-### A public demo, on a free tier — with real limits
+### A public URL, from your own machine — the whole product, free
 
-There is no free hosting tier with a GPU, so a hosted demo cannot run a local model. The
-provider layer means that is only a configuration change: point it at a free
-OpenAI-compatible endpoint instead. [`render.yaml`](render.yaml) is a working blueprint.
+The catch with every free hosting tier is that none of them has a GPU, so none of them can
+run your model. Your machine already does. A [Cloudflare quick
+tunnel](https://trycloudflare.com) puts it on a public HTTPS address with no account, no
+card and no port forwarding:
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/maliijaz/lectern)
-
-That button reads `render.yaml` and builds the lite image. The one thing it cannot do for you
-is the API key — set `LECTERN_LLM_API_KEY` when Render prompts for it. Or by hand:
-
-```
-render.com  →  New > Blueprint  →  pick this repo  →  set LECTERN_LLM_API_KEY
+```powershell
+.\tasks.ps1 share
 ```
 
-Free endpoints that speak the same protocol, no card required:
-[Groq](https://console.groq.com) (fastest), [OpenRouter](https://openrouter.ai) (widest
-model choice), [Mistral](https://console.mistral.ai), and Google's OpenAI-compatible
-Gemini endpoint.
+That builds the UI, starts the app, prints an access key and opens the tunnel. Everything
+works — your GPU, your uploaded documents, your library kept on disk — for as long as you
+leave it running. The URL dies when you stop it, and changes each time.
+
+Because the URL is genuinely public and the app has no login, `share` refuses to run
+without `LECTERN_ACCESS_KEY` and generates one if you have not set it. Send people the
+URL with `?key=...` on the end; it is swapped for a cookie on first load, so the secret
+does not linger in history or `Referer` headers. Set the same variable on any hosted
+deploy.
+
+### A hosted demo, on a free tier — with real limits
+
+Worth knowing before you go looking: **free Docker hosting has largely stopped being free
+in 2026.** Hugging Face now needs a paid plan for Docker Spaces, Fly and Northflank ask
+for a card, and Koyeb's free instance is in flux since the Mistral acquisition. Render's
+free web service still exists, but its **Blueprint flow asks for a card** even for free
+services — so use the manual path instead, which does not:
+
+```
+render.com  ->  New > Web Service  ->  connect this repo
+                Language: Docker
+                Instance Type: Free
+                Health Check Path: /health
+                Environment: paste the block below, then add LECTERN_LLM_API_KEY
+```
+
+Render reads the `Dockerfile` directly here; [`render.yaml`](render.yaml) is still the
+reference for what to set, and still works if you ever have a card on file. The one thing
+you must add by hand is a free [Groq](https://console.groq.com) key as
+`LECTERN_LLM_API_KEY`.
+
+```ini
+LECTERN_LLM_PROVIDER=openai_compat
+LECTERN_LLM_BASE_URL=https://api.groq.com/openai/v1
+LECTERN_LLM_MODEL=openai/gpt-oss-20b
+LECTERN_WORKER_CONCURRENCY=1
+LECTERN_EMBED_DEVICE=cpu
+LECTERN_OCR_ENABLED=false
+LECTERN_MAX_UPLOAD_MB=10
+LECTERN_DATA_DIR=/data
+LECTERN_DATABASE_URL=sqlite+aiosqlite:////data/lectern.db
+LECTERN_CORS_ORIGINS=
+LECTERN_ACCESS_KEY=pick-something
+```
+
+Set **Docker Build Arg** `EXTRAS` to an empty string, or the build pulls PyTorch and will
+not fit the free plan.
 
 **What you give up, and you should know before you send anyone the link:**
 
-| | Self-hosted | Free tier |
+| | Your machine, tunnelled | Free hosting tier |
 |---|---|---|
 | Generation from a topic | yes | yes |
 | Every export format | yes | yes |
@@ -175,18 +214,20 @@ Gemini endpoint.
 | Charts, diagrams, narration audio | yes | **no** |
 | Your work is kept | yes | **no** — the disk is wiped on every restart |
 | Privacy | total | prompts go to whichever endpoint you chose |
+| Runs when your machine is off | **no** | yes |
 | First request after idling | instant | about a minute while it wakes |
 
 The app does not pretend otherwise: the unavailable features are greyed out with the reason
 and the command that would enable them, because the capability check is the same one that
 runs locally.
 
-**If the demo is for other people to use**, set `LECTERN_LLM_API_KEY` to a key you are willing to
-have spent, and know what a free key actually buys. Groq's free tier allows 30 requests a minute
-but only **8,000 tokens a minute and 200,000 a day** — and tokens are the limit that bites first.
-One question paper is about twenty calls, so it will be throttled partway through. It still
-finishes: a rate-limited call reads the reset time off the response and waits exactly that long
-rather than guessing. Expect a paper to take minutes, and about ten of them a day from one key.
+**If the demo is for other people to use**, set `LECTERN_LLM_API_KEY` to a key you are
+willing to have spent, and know what a free key actually buys. Groq's free tier allows 30
+requests a minute but only **8,000 tokens a minute and 200,000 a day** — and tokens are the
+limit that bites first. One question paper is about twenty calls, so it will be throttled
+partway through. It still finishes: a rate-limited call reads the reset time off the
+response and waits exactly that long rather than guessing. Expect a paper to take minutes,
+and about ten of them a day from one key.
 
 ---
 

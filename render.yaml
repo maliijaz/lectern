@@ -45,6 +45,12 @@ services:
       - key: LECTERN_LLM_API_KEY
         sync: false # set it in the dashboard; it must never live in git
 
+      # A shared secret the app demands before it answers anything. There is no login
+      # here, so without this the public URL is all anyone needs to spend the LLM quota
+      # above. Set it in the dashboard; leaving it blank leaves the demo wide open.
+      - key: LECTERN_ACCESS_KEY
+        sync: false
+
       # ---- sized for a small, shared box ----------------------------------------
       # NUM_CTX and AUTO_CONTEXT are read only by the Ollama provider — they size a model
       # that is being loaded into VRAM, and nothing here loads one. They are set anyway so

@@ -52,6 +52,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Added after CORS, so it runs *before* it: a rejected request should not be told
+    # which origins are welcome. No-op unless LECTERN_ACCESS_KEY is set.
+    if settings.access_key:
+        from app.core.access import AccessKeyMiddleware
+
+        app.add_middleware(AccessKeyMiddleware, access_key=settings.access_key)
+        log.info("Access key required - set it as a header, or open the URL with ?key=")
+
     register_exception_handlers(app)
     app.include_router(api_router, prefix="/api/v1")
 
