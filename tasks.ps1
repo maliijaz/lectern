@@ -2,6 +2,9 @@
 .SYNOPSIS
   Development and setup tasks for Lectern.
 
+  This is not how you install Lectern - install.ps1 is, and it calls this underneath.
+  These commands assume a checkout you are working on.
+
 .DESCRIPTION
   Deliberately ASCII-only. Windows PowerShell 5.1 reads a .ps1 file as ANSI unless it
   carries a UTF-8 byte-order mark, so a stray em-dash or arrow in a string turns into

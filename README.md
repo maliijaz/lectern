@@ -11,8 +11,6 @@ computer.
 
 ## Install it
 
-One command. It installs only what is missing, downloads a model, and opens your browser.
-
 **Windows** — in PowerShell:
 
 ```powershell
@@ -25,41 +23,24 @@ irm https://raw.githubusercontent.com/maliijaz/lectern/main/install.ps1 | iex
 curl -fsSL https://raw.githubusercontent.com/maliijaz/lectern/main/install.sh | bash
 ```
 
-That is the whole setup. It checks for Python, Node and [Ollama](https://ollama.com),
-installs whatever you are missing, fetches the model (about 5 GB, once), builds the
-interface and starts it on <http://127.0.0.1:8000>. It tells you what it is going to do
-and waits for you to press Enter before it does any of it.
+That is the whole thing. It checks what you already have, installs whatever is missing
+— [Python](https://python.org), [Node](https://nodejs.org), [Ollama](https://ollama.com)
+— downloads the model, builds the interface, and opens your browser on it. It shows you
+the plan and waits for you to press Enter before it touches anything.
 
-Afterwards, to start it again:
+**Run that same command again to start Lectern.** It notices it is already installed and
+just launches. On Windows there is also a Start Menu entry; on macOS and Linux, a
+`lectern-app` command.
 
-```
-cd ~/lectern        # or wherever it installed
-./tasks.sh serve    # .\tasks.ps1 serve on Windows
-```
+| To do this | Add this |
+|---|---|
+| Get the latest version first | `-Update` / `--update` |
+| Put it on a public link for a colleague | `-Share` / `--share` |
+| Install somewhere else | `-Path D:\lectern` / `--path ~/apps/lectern` |
+| Use a hosted model instead of a local one | `-SkipModel` / `--skip-model` |
 
-<details>
-<summary>Would rather not pipe a script from the internet into your shell?</summary>
-
-Reasonable. Read [install.ps1](install.ps1) or [install.sh](install.sh) first — they are
-short and do nothing clever — or skip them entirely and do it by hand:
-
-```bash
-git clone https://github.com/maliijaz/lectern
-cd lectern
-./tasks.sh setup     # .\tasks.ps1 setup on Windows
-ollama pull qwen3:8b
-./tasks.sh serve
-```
-
-You need [Python 3.11+](https://python.org), [Node 20+](https://nodejs.org) and
-[Ollama](https://ollama.com). Or with Docker, needing none of them:
-
-```bash
-docker compose --profile with-ollama up
-docker compose exec ollama ollama pull qwen3:8b
-```
-
-</details>
+Those scripts are [install.ps1](install.ps1) and [install.sh](install.sh). They are short,
+they do nothing clever, and reading one before you run it is a reasonable thing to do.
 
 ---
 
@@ -135,8 +116,8 @@ would rather have the minute back.
 
 ## Requirements
 
-The installer above sets all of this up for you; this is here so you know what it put on
-your machine.
+The installer handles every one of these. This list is here so you know what went onto
+your machine, not so you can install them yourself.
 
 - **Python 3.11+**
 - **Node 20+** (for the web UI)
@@ -172,11 +153,11 @@ ended up, and warns at the top of every page if any of it is on the CPU. Set
 which measured **6.6× faster** here (5.9 → 39 passages/sec). It falls back to the CPU automatically
 when the language model has already claimed the VRAM, rather than failing mid-ingest.
 
-`.\tasks.ps1 setup` installs the CUDA build of PyTorch when it finds an NVIDIA card. Check what the
+The installer puts in the CUDA build of PyTorch when it finds an NVIDIA card. Check what the
 app sees at any time:
 
-```powershell
-.\tasks.ps1 gpu
+```bash
+lectern status
 ```
 
 **No GPU?** Everything still works. Use a smaller model — `ollama pull qwen3:4b` or
@@ -192,13 +173,8 @@ you want.
 ### Self-hosted, on a machine with a GPU — the real thing
 
 This is what the product is for: everything works, nothing leaves the building, no account
-anywhere. A school laptop with an 8 GB card is enough. The [one-command
-install](#install-it) at the top of this page is the easiest route; Docker is the other:
-
-```bash
-docker compose up                              # uses an Ollama on your host
-docker compose --profile with-ollama up        # brings its own Ollama
-```
+anywhere. A school laptop with an 8 GB card is enough. It is the [one command at the top of
+this page](#install-it); there is nothing else to set up.
 
 ### A public URL, from your own machine — the whole product, free
 
@@ -208,14 +184,18 @@ tunnel](https://trycloudflare.com) puts it on a public HTTPS address with no acc
 card and no port forwarding:
 
 ```powershell
-.\tasks.ps1 share
+irm https://raw.githubusercontent.com/maliijaz/lectern/main/install.ps1 | iex -Share
 ```
 
-That builds the UI, starts the app, prints an access key and opens the tunnel. Everything
+```bash
+curl -fsSL https://raw.githubusercontent.com/maliijaz/lectern/main/install.sh | bash -s -- --share
+```
+
+That starts the app, prints an access key and opens the tunnel. Everything
 works — your GPU, your uploaded documents, your library kept on disk — for as long as you
 leave it running. The URL dies when you stop it, and changes each time.
 
-Because the URL is genuinely public and the app has no login, `share` refuses to run
+Because the URL is genuinely public and the app has no login, share mode refuses to run
 without `LECTERN_ACCESS_KEY` and generates one if you have not set it. Send people the
 URL with `?key=...` on the end; it is swapped for a cookie on first load, so the secret
 does not linger in history or `Referer` headers. Set the same variable on any hosted
@@ -284,27 +264,6 @@ limit that bites first. One question paper is about twenty calls, so it will be 
 partway through. It still finishes: a rate-limited call reads the reset time off the
 response and waits exactly that long rather than guessing. Expect a paper to take minutes,
 and about ten of them a day from one key.
-
----
-
-## Running it day to day
-
-Both scripts take the same commands; only the extension differs.
-
-| | Windows | macOS / Linux |
-|---|---|---|
-| Run it | `.\tasks.ps1 serve` | `./tasks.sh serve` |
-| Share it on a public link | `.\tasks.ps1 share` | `./tasks.sh share` |
-| Develop with hot reload | `.\tasks.ps1 dev` | `./tasks.sh dev` |
-| Check the GPU is being used | `.\tasks.ps1 gpu` | `./tasks.sh gpu` |
-| Run the tests | `.\tasks.ps1 test` | `./tasks.sh test` |
-
-Or with Docker:
-
-```bash
-docker compose up                              # uses an Ollama on your host
-docker compose --profile with-ollama up        # brings its own Ollama
-```
 
 ---
 
@@ -438,7 +397,7 @@ npm install -g @mermaid-js/mermaid-cli   # diagrams on slides
 > python -c "import torch; print(torch.cuda.is_available())"   # must print True
 > ```
 >
-> `.\tasks.ps1 setup` does all of this for you, including the check at the end.
+> The installer does all of this for you, including the check at the end.
 
 Without `[ingest]` you can still generate from a topic; you just cannot upload a PDF.
 
@@ -456,20 +415,37 @@ backend/app/
   services/     Generation and export orchestration
   jobs/         In-process async worker pool with SSE progress
   api/v1/       FastAPI routes
-  cli/          The `ta` command
+  cli/          The `lectern` command
 frontend/src/   React + Vite + Tailwind
 templates/      Typst document templates
+
+install.ps1     The installer. The only supported way in.
+install.sh      Same, for macOS and Linux.
+tasks.ps1       What the installer calls underneath, plus the developer commands.
+tasks.sh        Same, for macOS and Linux.
+Dockerfile      Used for hosted deployments and by CI. Not an install path.
 ```
 
 ---
 
-## Testing
+## Working on it
 
-```powershell
-.\tasks.ps1 test
+Everything above is for using Lectern. This part is for changing it.
+
+```bash
+git clone https://github.com/maliijaz/lectern
+cd lectern
+./tasks.sh setup          # .\tasks.ps1 setup on Windows
+./tasks.sh dev            # API on :8000, web UI on :5173, both hot-reloading
+./tasks.sh test           # the suite
+./tasks.sh lint           # ruff, then the frontend typecheck
 ```
 
-190 tests covering schema repair rules, the blueprint engine, the independent answer-key check,
+`tasks.sh` and `tasks.ps1` are the same commands on either platform, and they are what the
+installer calls underneath. They are not a second way to install it — they assume a
+checkout you are editing.
+
+218 tests covering schema repair rules, the blueprint engine, the independent answer-key check,
 GPU context sizing against measured VRAM boundaries, transient-failure retry, every renderer, the
 ingestion pipeline, and the full generate → edit → export → download path over HTTP. They use a
 stub provider, so the suite needs no model, no GPU and no network, and runs in about seven seconds.

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# One-command install for Lectern on macOS and Linux.
+# Install and run Lectern on macOS and Linux. The only command you need.
 #
 #   curl -fsSL https://raw.githubusercontent.com/maliijaz/lectern/main/install.sh | bash
 #
-# Run this and you get a working Lectern: the app, its dependencies, a local AI model,
-# and a browser open on it. Everything it installs is free and open source, it installs
-# only what is missing, and it says what it is about to do before it does it.
+# Run this once and it installs everything. Run it again and it just starts Lectern.
+# There is deliberately no second way to do it.
+#
+# Everything it installs is free and open source. It installs only what is missing, and
+# it says what it is about to do before it does it.
 set -euo pipefail
 
 REPO="https://github.com/maliijaz/lectern"
@@ -14,11 +16,15 @@ TARGET="${LECTERN_HOME:-$HOME/lectern}"
 MODEL="${LECTERN_MODEL:-qwen3:8b}"
 SKIP_MODEL="${LECTERN_SKIP_MODEL:-0}"
 ASSUME_YES="${LECTERN_YES:-0}"
+UPDATE=0
+SHARE=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --path) TARGET="$2"; shift 2 ;;
     --model) MODEL="$2"; shift 2 ;;
+    --update) UPDATE=1; shift ;;
+    --share) SHARE=1; shift ;;
     --skip-model) SKIP_MODEL=1; shift ;;
     --yes|-y) ASSUME_YES=1; shift ;;
     *) shift ;;
@@ -39,9 +45,56 @@ case "$OS" in
   *) bad "This installer supports macOS and Linux. On Windows use install.ps1."; exit 1 ;;
 esac
 
+open_browser() {
+  # Wait for the port to answer rather than guessing, so the browser does not open on a
+  # connection error when the first start is slow.
+  for _ in $(seq 1 60); do
+    if curl -fsS "http://127.0.0.1:8000/health" >/dev/null 2>&1; then
+      if [ "$PLATFORM" = mac ]; then open http://127.0.0.1:8000 >/dev/null 2>&1 || true
+      else xdg-open http://127.0.0.1:8000 >/dev/null 2>&1 || true
+      fi
+      return
+    fi
+    sleep 1
+  done
+}
+
+start_lectern() {
+  # --share hands off to the tunnel task, which generates an access key and prints the
+  # public URL. No browser is opened: the point of that mode is the link, not this
+  # machine's screen.
+  if [ "$SHARE" = 1 ]; then
+    exec "$TARGET/tasks.sh" share
+  fi
+  printf '\n\033[32m  Lectern is starting at http://127.0.0.1:8000\033[0m\n'
+  printf '\033[32m  Press Ctrl-C to stop it.\033[0m\n\n'
+  open_browser &
+  exec "$TARGET/tasks.sh" serve
+}
+
+# A finished install, not a folder left behind by a run that died halfway. Both have to
+# be present or "already installed" is a lie that produces a confusing error later.
+is_installed() {
+  [ -x "$TARGET/.venv/bin/python" ] && [ -f "$TARGET/backend/app/main.py" ]
+}
+
+# ---------------------------------------------------------------- already installed?
+if is_installed && [ "$UPDATE" != 1 ]; then
+  printf '\n\033[36m  Lectern is already installed in %s\033[0m\n' "$TARGET"
+  info "Pass --update to fetch the latest version first."
+  start_lectern
+fi
+
+cat <<'EOF'
+
+  Lectern
+  Slide decks, lecture notes and question papers, made on your own machine.
+
+EOF
+
 # The package manager anything missing gets installed with. Detected rather than assumed,
-# because "install these three things first" is exactly the friction this script exists
-# to remove -- but only where we can do it without guessing.
+# because "install these three things first" is exactly the friction this exists to
+# remove -- but only where it can be done without guessing.
 PM=""
 if [ "$PLATFORM" = mac ] && has brew; then PM="brew"
 elif has apt-get; then PM="apt"
@@ -74,13 +127,6 @@ python_ok() {
   return 1
 }
 
-cat <<'EOF'
-
-  Lectern
-  Slide decks, lecture notes and question papers, made on your own machine.
-
-EOF
-
 # ---------------------------------------------------------------- what is already here
 head "Checking what you already have"
 
@@ -96,7 +142,7 @@ TODO=""
 has node || TODO="$TODO Node.js"
 { has ollama || [ "$SKIP_MODEL" = 1 ]; } || TODO="$TODO Ollama"
 [ -n "$TODO" ] && info "Install:$TODO"
-info "Download Lectern to: $TARGET"
+if [ "$UPDATE" = 1 ]; then info "Update Lectern in: $TARGET"; else info "Download Lectern to: $TARGET"; fi
 info "Set up its Python environment and build the web interface"
 [ "$SKIP_MODEL" = 1 ] || info "Download the $MODEL model (about 5 GB, one time)"
 info "Start it and open your browser"
@@ -135,24 +181,23 @@ if ! has ollama && [ "$SKIP_MODEL" != 1 ]; then
   if [ "$PLATFORM" = mac ] && [ "$PM" = brew ]; then
     brew install --cask ollama || warn "Ollama install failed; continuing without a local model."
   else
-    # Ollama's own installer is the supported path on Linux and handles the service unit.
+    # Ollama's own installer is the supported path on Linux and sets up the service unit.
     curl -fsSL https://ollama.com/install.sh | sh || warn "Ollama install failed; continuing without a local model."
   fi
   has ollama && ok "Ollama installed" || SKIP_MODEL=1
 fi
 
 # ---------------------------------------------------------------- the code
-head "Getting Lectern"
+if [ "$UPDATE" = 1 ]; then head "Updating Lectern"; else head "Getting Lectern"; fi
 if [ -d "$TARGET/backend" ]; then
-  info "Already there - updating it"
   if has git && [ -d "$TARGET/.git" ]; then
-    (cd "$TARGET" && git pull --ff-only >/dev/null 2>&1) && ok "updated" || warn "could not update; using what is there"
+    (cd "$TARGET" && git pull --ff-only >/dev/null 2>&1) && ok "updated to the latest version" || warn "could not update; using what is there"
   else
     ok "using the existing copy"
   fi
 elif has git; then
   git clone --depth 1 --branch "$BRANCH" "$REPO" "$TARGET" >/dev/null 2>&1
-  ok "cloned to $TARGET"
+  ok "downloaded to $TARGET"
 else
   # No git, so take the tarball. Keeps this to one command for someone who has never
   # installed a developer tool.
@@ -183,26 +228,30 @@ fi
 head "Setting up (a few minutes)"
 "$TARGET/tasks.sh" setup
 
-# ---------------------------------------------------------------- go
+# ---------------------------------------------------------------- a way back in
+# Without this, "run it again" means remembering a path and a command.
+head "Adding a lectern-app command"
+BINDIR="$HOME/.local/bin"
+mkdir -p "$BINDIR"
+cat > "$BINDIR/lectern-app" <<LAUNCHER
+#!/usr/bin/env bash
+exec "$TARGET/tasks.sh" serve
+LAUNCHER
+chmod +x "$BINDIR/lectern-app"
+if echo ":$PATH:" | grep -q ":$BINDIR:"; then
+  ok "run 'lectern-app' to start it"
+else
+  ok "created $BINDIR/lectern-app"
+  warn "$BINDIR is not on your PATH; add it, or run the command above in full"
+fi
+
 cat <<EOF
 
-$(printf '\033[32m  Done.\033[0m')
+$(printf '\033[32m  Done. Lectern lives in %s\033[0m' "$TARGET")
 
-  Lectern is at http://127.0.0.1:8000
-  Your copy lives in $TARGET
-
-  To start it again later:
-      cd $TARGET
-      ./tasks.sh serve
-
-  To put it on a public link for a colleague:
-      ./tasks.sh share
+  To start it again: run 'lectern-app', or run this same command again.
+  Add --update to get the latest version first.
 
 EOF
 
-( sleep 6
-  if [ "$PLATFORM" = mac ]; then open http://127.0.0.1:8000 >/dev/null 2>&1 || true
-  else xdg-open http://127.0.0.1:8000 >/dev/null 2>&1 || true
-  fi ) &
-
-exec "$TARGET/tasks.sh" serve
+start_lectern

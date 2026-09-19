@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Development and setup tasks for Lectern on macOS and Linux.
 #
+# This is not how you install Lectern - install.sh is, and it calls this underneath.
+# These commands assume a checkout you are working on.
+#
 # The POSIX half of tasks.ps1. The two are kept deliberately in step: same task names,
 # same output, same behaviour, so the README can give one instruction to everybody and
 # only the file extension differs.

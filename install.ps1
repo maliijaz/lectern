@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-  One-command install for Lectern on Windows.
+  Install and run Lectern on Windows. The only command you need.
 
 .DESCRIPTION
-  Run this and you get a working Lectern: the app, its dependencies, a local AI model,
-  and a browser open on it. Nothing to configure.
+  Run this once and it installs everything. Run it again and it just starts Lectern.
+  There is deliberately no second way to do it.
 
     irm https://raw.githubusercontent.com/maliijaz/lectern/main/install.ps1 | iex
 
@@ -17,17 +17,26 @@
 .PARAMETER Path
   Where to install. Defaults to a "lectern" folder in your home directory.
 
+.PARAMETER Update
+  Fetch the latest version and reinstall dependencies before starting.
+
+.PARAMETER Share
+  Start it on a public HTTPS link instead of locally, so a colleague can use it.
+  Needs cloudflared; it will tell you how to get it.
+
 .PARAMETER Model
-  Which local model to pull. The default is tuned for this workload.
+  Which local model to use. The default is tuned for this workload.
 
 .PARAMETER SkipModel
-  Do not download a model. Use this if you plan to point Lectern at a hosted endpoint.
+  Do not download a model. Use this to point Lectern at a hosted endpoint instead.
 
 .PARAMETER Yes
   Do not ask anything. For scripted or unattended installs.
 #>
 param(
   [string]$Path = (Join-Path $HOME "lectern"),
+  [switch]$Update,
+  [switch]$Share,
   [string]$Model = "qwen3:8b",
   [switch]$SkipModel,
   [switch]$Yes
@@ -45,13 +54,66 @@ function Write-Info($m) { Write-Host "  $m" -ForegroundColor Gray }
 function Write-Warn2($m) { Write-Host "  [!] $m" -ForegroundColor Yellow }
 function Write-Bad($m) { Write-Host "  [x] $m" -ForegroundColor Red }
 
-function Test-Cmd($name) {
-  return [bool](Get-Command $name -ErrorAction SilentlyContinue)
+function Test-Cmd($name) { return [bool](Get-Command $name -ErrorAction SilentlyContinue) }
+
+function Get-VenvPython($root) { return (Join-Path $root ".venv\Scripts\python.exe") }
+
+# A finished install, as opposed to a folder that exists because a previous run died
+# halfway. Both files have to be there or "already installed" is a lie that produces a
+# confusing error two steps later.
+function Test-Installed($root) {
+  return (Test-Path (Get-VenvPython $root)) -and (Test-Path (Join-Path $root "backend\app\main.py"))
 }
 
-# winget is how anything missing gets installed. Without it we can still proceed, but the
-# user has to install the prerequisites themselves, so say so clearly rather than failing
-# five steps later with a confusing error.
+function Start-Lectern($root) {
+  # -Share hands off to the tunnel task, which generates an access key and prints the
+  # public URL. No browser is opened: the point of that mode is the link, not this
+  # machine's screen.
+  if ($Share) {
+    Push-Location $root
+    try { & (Join-Path $root "tasks.ps1") share } finally { Pop-Location }
+    return
+  }
+
+  Write-Host @"
+
+  Lectern is starting at http://127.0.0.1:8000
+  Press Ctrl+C to stop it.
+
+"@ -ForegroundColor Green
+
+  Start-Job -ScriptBlock {
+    # Wait for the port to answer rather than guessing, so the browser does not open on
+    # a connection error when the first start is slow.
+    for ($i = 0; $i -lt 60; $i++) {
+      try {
+        Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -UseBasicParsing -TimeoutSec 2 | Out-Null
+        Start-Process "http://127.0.0.1:8000"
+        return
+      }
+      catch { Start-Sleep -Seconds 1 }
+    }
+  } | Out-Null
+
+  Push-Location $root
+  try { & (Join-Path $root "tasks.ps1") serve } finally { Pop-Location }
+}
+
+# ---------------------------------------------------------------- already installed?
+if ((Test-Installed $Path) -and -not $Update) {
+  Write-Host "`n  Lectern is already installed in $Path" -ForegroundColor Cyan
+  Write-Info "Run with -Update to fetch the latest version first."
+  Start-Lectern $Path
+  exit 0
+}
+
+Write-Host @"
+
+  Lectern
+  Slide decks, lecture notes and question papers, made on your own machine.
+
+"@ -ForegroundColor Cyan
+
 function Install-With-Winget($id, $label) {
   if (-not (Test-Cmd "winget")) {
     Write-Bad "$label is missing and winget is not available to install it."
@@ -63,7 +125,7 @@ function Install-With-Winget($id, $label) {
     --silent --disable-interactivity | Out-Null
 
   # A fresh install is not on PATH in this process yet. Re-read it from the registry so
-  # the rest of the script can find the new executable without a restart.
+  # the rest of the script finds the new executable without needing a restart.
   $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
   $user = [Environment]::GetEnvironmentVariable("Path", "User")
   $env:Path = "$machine;$user"
@@ -71,12 +133,12 @@ function Install-With-Winget($id, $label) {
 }
 
 function Get-PythonVersion {
-  # py -3 is the reliable launcher on Windows; `python` can be the Store stub that only
-  # opens the Microsoft Store and exits, which would look like a working Python here.
+  # py -3 is the reliable launcher on Windows; bare `python` can be the Store stub that
+  # only opens the Microsoft Store and exits, which would look like a working Python.
   foreach ($exe in @("py", "python")) {
     if (-not (Test-Cmd $exe)) { continue }
     $args = if ($exe -eq "py") { @("-3", "-c", "import sys; print(sys.version_info[:2])") }
-            else { @("-c", "import sys; print(sys.version_info[:2])") }
+    else { @("-c", "import sys; print(sys.version_info[:2])") }
     try {
       $out = & $exe @args 2>$null
       if ($out -match "\((\d+),\s*(\d+)\)") {
@@ -87,13 +149,6 @@ function Get-PythonVersion {
   }
   return $null
 }
-
-Write-Host @"
-
-  Lectern
-  Slide decks, lecture notes and question papers, made on your own machine.
-
-"@ -ForegroundColor Cyan
 
 # ---------------------------------------------------------------- what is already here
 Write-Head "Checking what you already have"
@@ -120,26 +175,21 @@ if (-not $haveOllama -and -not $SkipModel) { $todo += "Ollama" }
 
 Write-Head "The plan"
 if ($todo.Count) { Write-Info ("Install: " + ($todo -join ", ")) }
-Write-Info "Download Lectern to: $Path"
+Write-Info $(if ($Update) { "Update Lectern in: $Path" } else { "Download Lectern to: $Path" })
 Write-Info "Set up its Python environment and build the web interface"
-if (-not $SkipModel) {
-  Write-Info "Download the $Model model (about 5 GB, one time)"
-}
+if (-not $SkipModel) { Write-Info "Download the $Model model (about 5 GB, one time)" }
 Write-Info "Start it and open your browser"
 
 if (-not $Yes) {
   Write-Host ""
   # Read-Host throws outright when there is no console to read from, which is the normal
-  # case for `irm ... | iex` under some hosts and for any scripted run. Someone who typed
-  # the install command has already said yes, so a prompt we cannot show is not a reason
-  # to fail - carry on.
+  # case for `irm ... | iex` under some hosts. Someone who typed the install command has
+  # already said yes, so a prompt we cannot show is not a reason to fail.
   try {
     $answer = Read-Host "  Press Enter to continue, or type n to stop"
     if ($answer -match "^\s*n") { Write-Info "Stopped. Nothing was changed."; exit 0 }
   }
-  catch {
-    Write-Info "(no console to ask at - continuing)"
-  }
+  catch { Write-Info "(no console to ask at - continuing)" }
 }
 
 # ---------------------------------------------------------------- prerequisites
@@ -168,22 +218,23 @@ if (-not $haveOllama -and -not $SkipModel) {
 }
 
 # ---------------------------------------------------------------- the code
-Write-Head "Getting Lectern"
+Write-Head $(if ($Update) { "Updating Lectern" } else { "Getting Lectern" })
 if (Test-Path (Join-Path $Path "backend")) {
-  Write-Info "Already there - updating it"
   if ($haveGit -and (Test-Path (Join-Path $Path ".git"))) {
     Push-Location $Path
-    try { git pull --ff-only 2>&1 | Out-Null; Write-Ok "updated" } catch { Write-Warn2 "could not update; using what is there" } finally { Pop-Location }
+    try { git pull --ff-only 2>&1 | Out-Null; Write-Ok "updated to the latest version" }
+    catch { Write-Warn2 "could not update; using what is there" }
+    finally { Pop-Location }
   }
   else { Write-Ok "using the existing copy" }
 }
 elseif ($haveGit) {
   git clone --depth 1 --branch $Branch $Repo $Path 2>&1 | Out-Null
-  Write-Ok "cloned to $Path"
+  Write-Ok "downloaded to $Path"
 }
 else {
-  # No git, so take the zip. This is what keeps the whole thing to one command for
-  # someone who has never installed a developer tool in their life.
+  # No git, so take the zip. This is what keeps it to one command for someone who has
+  # never installed a developer tool in their life.
   Write-Info "git is not installed, downloading the zip instead"
   $zip = Join-Path $env:TEMP "lectern.zip"
   $tmp = Join-Path $env:TEMP "lectern-unzip"
@@ -202,9 +253,7 @@ else {
 if (-not $SkipModel -and (Test-Cmd "ollama")) {
   Write-Head "Getting the AI model"
   $have = (ollama list 2>$null) -join "`n"
-  if ($have -match [regex]::Escape($Model)) {
-    Write-Ok "$Model is already downloaded"
-  }
+  if ($have -match [regex]::Escape($Model)) { Write-Ok "$Model is already downloaded" }
   else {
     Write-Info "Pulling $Model - about 5 GB, so this is the slow part"
     ollama pull $Model
@@ -215,32 +264,33 @@ if (-not $SkipModel -and (Test-Cmd "ollama")) {
 # ---------------------------------------------------------------- build
 Write-Head "Setting up (a few minutes)"
 Push-Location $Path
-try {
-  & (Join-Path $Path "tasks.ps1") setup
-}
-finally { Pop-Location }
+try { & (Join-Path $Path "tasks.ps1") setup } finally { Pop-Location }
 
-# ---------------------------------------------------------------- go
+# ---------------------------------------------------------------- a way back in
+# Without this, "run it again" means remembering a path and a command. A Start Menu entry
+# is what makes this feel like an installed application rather than a checkout.
+Write-Head "Adding a Start Menu shortcut"
+try {
+  $programs = [Environment]::GetFolderPath("Programs")
+  $lnk = Join-Path $programs "Lectern.lnk"
+  $shell = New-Object -ComObject WScript.Shell
+  $shortcut = $shell.CreateShortcut($lnk)
+  $shortcut.TargetPath = "powershell.exe"
+  $shortcut.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$(Join-Path $Path 'tasks.ps1')`" serve"
+  $shortcut.WorkingDirectory = $Path
+  $shortcut.Description = "Lectern - teaching materials, made on your own machine"
+  $shortcut.Save()
+  Write-Ok "search the Start Menu for Lectern"
+}
+catch { Write-Warn2 "could not create the shortcut; start it from the terminal instead" }
+
 Write-Host @"
 
-  Done.
+  Done. Lectern lives in $Path
 
-  Lectern is at http://127.0.0.1:8000
-  Your copy lives in $Path
-
-  To start it again later:
-      cd $Path
-      .\tasks.ps1 serve
-
-  To put it on a public link for a colleague:
-      .\tasks.ps1 share
+  To start it again: search the Start Menu for Lectern, or run this same
+  command again. Add -Update to get the latest version first.
 
 "@ -ForegroundColor Green
 
-Start-Job -ScriptBlock {
-  Start-Sleep -Seconds 6
-  Start-Process "http://127.0.0.1:8000"
-} | Out-Null
-
-Push-Location $Path
-try { & (Join-Path $Path "tasks.ps1") serve } finally { Pop-Location }
+Start-Lectern $Path
