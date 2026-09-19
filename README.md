@@ -9,6 +9,58 @@ plans, rubrics, worksheets, flashcards and grading help.
 It runs **completely offline** on your own machine. No account, no API key, no data leaving your
 computer.
 
+## Install it
+
+One command. It installs only what is missing, downloads a model, and opens your browser.
+
+**Windows** — in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/maliijaz/lectern/main/install.ps1 | iex
+```
+
+**macOS or Linux** — in a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/maliijaz/lectern/main/install.sh | bash
+```
+
+That is the whole setup. It checks for Python, Node and [Ollama](https://ollama.com),
+installs whatever you are missing, fetches the model (about 5 GB, once), builds the
+interface and starts it on <http://127.0.0.1:8000>. It tells you what it is going to do
+and waits for you to press Enter before it does any of it.
+
+Afterwards, to start it again:
+
+```
+cd ~/lectern        # or wherever it installed
+./tasks.sh serve    # .\tasks.ps1 serve on Windows
+```
+
+<details>
+<summary>Would rather not pipe a script from the internet into your shell?</summary>
+
+Reasonable. Read [install.ps1](install.ps1) or [install.sh](install.sh) first — they are
+short and do nothing clever — or skip them entirely and do it by hand:
+
+```bash
+git clone https://github.com/maliijaz/lectern
+cd lectern
+./tasks.sh setup     # .\tasks.ps1 setup on Windows
+ollama pull qwen3:8b
+./tasks.sh serve
+```
+
+You need [Python 3.11+](https://python.org), [Node 20+](https://nodejs.org) and
+[Ollama](https://ollama.com). Or with Docker, needing none of them:
+
+```bash
+docker compose --profile with-ollama up
+docker compose exec ollama ollama pull qwen3:8b
+```
+
+</details>
+
 ---
 
 ## What it makes
@@ -83,6 +135,9 @@ would rather have the minute back.
 
 ## Requirements
 
+The installer above sets all of this up for you; this is here so you know what it put on
+your machine.
+
 - **Python 3.11+**
 - **Node 20+** (for the web UI)
 - **[Ollama](https://ollama.com)** with a model pulled — `ollama pull qwen3:8b` is a good default
@@ -137,7 +192,8 @@ you want.
 ### Self-hosted, on a machine with a GPU — the real thing
 
 This is what the product is for: everything works, nothing leaves the building, no account
-anywhere. A school laptop with an 8 GB card is enough.
+anywhere. A school laptop with an 8 GB card is enough. The [one-command
+install](#install-it) at the top of this page is the easiest route; Docker is the other:
 
 ```bash
 docker compose up                              # uses an Ollama on your host
@@ -231,18 +287,17 @@ and about ten of them a day from one key.
 
 ---
 
-## Quick start
+## Running it day to day
 
-```powershell
-.\tasks.ps1 setup      # venv, backend, optional extras, web UI, .env
-.\tasks.ps1 dev        # API on :8000, web UI on :5173 with hot reload
-```
+Both scripts take the same commands; only the extension differs.
 
-Or run the built app on a single port:
-
-```powershell
-.\tasks.ps1 serve      # http://127.0.0.1:8000
-```
+| | Windows | macOS / Linux |
+|---|---|---|
+| Run it | `.\tasks.ps1 serve` | `./tasks.sh serve` |
+| Share it on a public link | `.\tasks.ps1 share` | `./tasks.sh share` |
+| Develop with hot reload | `.\tasks.ps1 dev` | `./tasks.sh dev` |
+| Check the GPU is being used | `.\tasks.ps1 gpu` | `./tasks.sh gpu` |
+| Run the tests | `.\tasks.ps1 test` | `./tasks.sh test` |
 
 Or with Docker:
 
