@@ -1,0 +1,92 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "teacher-assistant"
+version = "0.1.0"
+description = "Open-source assistant that turns documents or topics into slides, lecture notes and question papers"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+dependencies = [
+  # --- web / api ---
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "python-multipart>=0.0.12",
+  "sse-starlette>=2.1",
+  "httpx>=0.27",
+
+  # --- config / models ---
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+
+  # --- persistence ---
+  "sqlalchemy>=2.0.36",
+  "aiosqlite>=0.20",
+  "alembic>=1.14",
+  "greenlet>=3.1",
+
+  # --- templating (prompts + html/typst output) ---
+  "jinja2>=3.1",
+
+  # --- document generation ---
+  "python-pptx>=1.0.2",
+  "python-docx>=1.1.2",
+  "typst>=0.12",
+  "genanki>=0.13",
+  "markdown-it-py>=3.0",
+
+  # --- cli ---
+  "typer>=0.15",
+  "rich>=13.9",
+]
+
+[project.optional-dependencies]
+# Document parsing + retrieval. Heavy (pulls torch); split out so the API can boot without it
+# and so CI can run the renderer tests on their own.
+ingest = [
+  "docling>=2.15",
+  "chromadb>=0.5.20",
+  "sentence-transformers>=3.3",
+]
+# Diagram rendering and offline narration.
+media = [
+  "matplotlib>=3.9",
+  "pillow>=11.0",
+]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "ruff>=0.8",
+  "mypy>=1.13",
+]
+
+[project.scripts]
+ta = "app.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+ignore = ["B008"]  # FastAPI Depends() in defaults is the documented idiom
+
+[tool.ruff.lint.per-file-ignores]
+# These modules are mostly literal content — prompt text, CSS and Typst templates — held in
+# triple-quoted strings. The formatter cannot wrap a string literal, and hand-wrapping a
+# prompt changes what the model reads, so the line limit is not enforced on them.
+"app/generators/*.py" = ["E501"]
+"app/render/html.py" = ["E501"]
+"app/render/pdf.py" = ["E501"]
+"app/render/lms.py" = ["E501"]
+"app/render/markdown.py" = ["E501"]
+"app/tests/*.py" = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["app/tests"]

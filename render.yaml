@@ -1,0 +1,78 @@
+# Render blueprint — a free, public demo of Teacher Assistant.
+#
+# Render's free tier is the shape this file is written for, and the shape matters:
+#
+#   512 MB RAM        so the image is built WITHOUT PyTorch (EXTRAS=""). Document upload
+#                     and semantic search report themselves as unavailable in the UI
+#                     rather than failing; generation from a topic and every export
+#                     format work normally.
+#   No GPU            so there is no local model. The app talks to a free hosted
+#                     OpenAI-compatible endpoint instead — see TA_LLM_BASE_URL below.
+#   Ephemeral disk    uploads, exports and the SQLite database are wiped on every restart
+#                     and every deploy. Fine for a demo; not where a teacher keeps a
+#                     term's work. For that, self-host (see the README).
+#   Sleeps when idle  the first request after 15 quiet minutes takes about a minute while
+#                     the container wakes.
+#
+# Deploy: push this repo to GitHub, then New > Blueprint on render.com and point it here.
+# Set TA_LLM_API_KEY in the Render dashboard; never commit a key.
+
+services:
+  - type: web
+    name: teacher-assistant
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # The lite image. A full build needs ~5 GB and will not fit the free plan.
+    dockerBuildArgs:
+      EXTRAS: ""
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # ---- where the model lives -------------------------------------------------
+      # No GPU here, so point at a hosted OpenAI-compatible endpoint. Groq's free tier
+      # needs no card and is markedly faster than a local 8B model. Alternatives that
+      # also speak this protocol: OpenRouter, Mistral, Google's OpenAI-compat endpoint.
+      - key: TA_LLM_PROVIDER
+        value: openai_compat
+      - key: TA_LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: TA_LLM_MODEL
+        value: openai/gpt-oss-20b
+      - key: TA_LLM_API_KEY
+        sync: false # set it in the dashboard; it must never live in git
+
+      # ---- sized for a small, shared box ----------------------------------------
+      # A hosted endpoint has a large context, and auto-sizing only ever reduces, so
+      # this is a plain ceiling here rather than a GPU calculation.
+      - key: TA_LLM_NUM_CTX
+        value: "16384"
+      - key: TA_LLM_AUTO_CONTEXT
+        value: "false"
+      - key: TA_LLM_TIMEOUT
+        value: "300"
+      # One worker: two generations at once would exhaust 512 MB.
+      - key: TA_WORKER_CONCURRENCY
+        value: "1"
+      # No PyTorch in the lite image, so embeddings cannot run at all. Stated
+      # explicitly rather than left to detection.
+      - key: TA_EMBED_DEVICE
+        value: cpu
+      - key: TA_OCR_ENABLED
+        value: "false"
+      - key: TA_MAX_UPLOAD_MB
+        value: "10"
+
+      # ---- paths and origins -----------------------------------------------------
+      - key: TA_DATA_DIR
+        value: /data
+      - key: TA_DATABASE_URL
+        value: sqlite+aiosqlite:////data/teacher_assistant.db
+      # The UI is served from the same origin as the API, so no cross-origin access is
+      # needed. Left empty deliberately: a public demo should not accept requests from
+      # arbitrary sites.
+      - key: TA_CORS_ORIGINS
+        value: ""

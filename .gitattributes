@@ -1,0 +1,21 @@
+# Normalise line endings on checkin so the repository is consistent whoever commits.
+* text=auto eol=lf
+
+# These must be LF whatever the platform. A Dockerfile or shell script with CRLF fails
+# inside a Linux container with an error that names the wrong thing entirely.
+Dockerfile   text eol=lf
+*.sh         text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+
+# PowerShell is Windows-facing, and Windows PowerShell 5.1 is happiest with CRLF.
+*.ps1        text eol=crlf
+
+# Binary: never touch these.
+*.png binary
+*.jpg binary
+*.pdf binary
+*.pptx binary
+*.docx binary
+*.apkg binary
+*.onnx binary

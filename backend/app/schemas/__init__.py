@@ -1,0 +1,101 @@
+"""Domain schemas — the contract between the model and every renderer."""
+
+from app.schemas.common import (
+    BLOOM_ORDER,
+    BLOOM_VERBS,
+    Audience,
+    Bloom,
+    Citation,
+    Depth,
+    Difficulty,
+    Figure,
+    GenerationMeta,
+    KeyTerm,
+    LearningObjective,
+    bloom_verb_hint,
+)
+from app.schemas.deck import Deck, DeckOutline, Slide, SlideLayout, SlideOutlineItem
+from app.schemas.lesson import Activity, LessonPlan, PlanTemplate
+from app.schemas.notes import Callout, LectureNotes, NoteSection, NotesOutline, WorkedExample
+from app.schemas.paper import (
+    AUTO_GRADABLE,
+    Blueprint,
+    BlueprintCell,
+    Option,
+    PaperMeta,
+    PaperSection,
+    Question,
+    QuestionPaper,
+    QuestionType,
+    RubricPoint,
+)
+from app.schemas.rubric import Criterion, PerformanceLevel, Rubric, RubricStyle
+from app.schemas.study import (
+    CardKind,
+    Flashcard,
+    FlashcardDeck,
+    GradingResult,
+    Worksheet,
+    WorksheetSection,
+)
+
+#: Every artifact kind's top-level schema, used by the API and the generic editor.
+ARTIFACT_SCHEMAS = {
+    "slides": Deck,
+    "notes": LectureNotes,
+    "exam": QuestionPaper,
+    "lesson_plan": LessonPlan,
+    "rubric": Rubric,
+    "worksheet": Worksheet,
+    "flashcards": FlashcardDeck,
+    "grading": GradingResult,
+}
+
+__all__ = [
+    "ARTIFACT_SCHEMAS",
+    "AUTO_GRADABLE",
+    "BLOOM_ORDER",
+    "BLOOM_VERBS",
+    "Activity",
+    "Audience",
+    "Bloom",
+    "Blueprint",
+    "BlueprintCell",
+    "Callout",
+    "CardKind",
+    "Citation",
+    "Criterion",
+    "Deck",
+    "DeckOutline",
+    "Depth",
+    "Difficulty",
+    "Figure",
+    "Flashcard",
+    "FlashcardDeck",
+    "GenerationMeta",
+    "GradingResult",
+    "KeyTerm",
+    "LearningObjective",
+    "LectureNotes",
+    "LessonPlan",
+    "NoteSection",
+    "NotesOutline",
+    "Option",
+    "PaperMeta",
+    "PaperSection",
+    "PerformanceLevel",
+    "PlanTemplate",
+    "Question",
+    "QuestionPaper",
+    "QuestionType",
+    "Rubric",
+    "RubricPoint",
+    "RubricStyle",
+    "Slide",
+    "SlideLayout",
+    "SlideOutlineItem",
+    "WorkedExample",
+    "Worksheet",
+    "WorksheetSection",
+    "bloom_verb_hint",
+]

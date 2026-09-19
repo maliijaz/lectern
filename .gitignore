@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# App data: uploads, parsed text, the search index, exports and the database.
+# Not committed, and not re-included by a negation either - git cannot un-ignore a
+# file whose parent directory is excluded. The app creates these folders on startup.
+data/
+
+# Local config
+.env
+.env.local
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
