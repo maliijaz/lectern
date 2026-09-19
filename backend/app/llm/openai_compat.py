@@ -21,6 +21,31 @@ from app.llm.base import Completion, LLMProvider, Message, ProbeResult
 log = get_logger(__name__)
 
 
+#: Free hosted tiers are usually limited by tokens per minute rather than requests, so the
+#: wait after a 429 can be most of a minute. Both headers below carry that number: the
+#: standard one in whole seconds, Groq's in a form like "7.66s".
+_RESET_HEADERS = ("retry-after", "x-ratelimit-reset-tokens", "x-ratelimit-reset-requests")
+
+#: A cap, because a misbehaving proxy advertising an hour must not hang a generation job.
+_MAX_RETRY_AFTER = 90.0
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    """How long the endpoint asked us to wait, in seconds, or None if it did not say."""
+    for header in _RESET_HEADERS:
+        raw = response.headers.get(header)
+        if not raw:
+            continue
+        try:
+            # Strip a trailing unit ("7.66s", "1m30s" is not emitted by these APIs).
+            seconds = float(raw.strip().rstrip("s") or 0)
+        except ValueError:
+            continue  # an HTTP-date form: fall back to exponential backoff
+        if seconds > 0:
+            return min(seconds, _MAX_RETRY_AFTER)
+    return None
+
+
 class OpenAICompatProvider(LLMProvider):
     name = "openai_compat"
 
@@ -125,9 +150,9 @@ class OpenAICompatProvider(LLMProvider):
         if response.status_code == 401:
             raise LLMError("Authentication failed — check the API key in Settings.")
         if response.status_code == 429:
-            raise LLMError(
-                "Rate limited by the endpoint. Wait a moment and try again.", transient=True
-            )
+            wait = _retry_after_seconds(response)
+            hint = f" Retrying in {wait:.0f}s." if wait else " Wait a moment and try again."
+            raise LLMError(f"Rate limited by the endpoint.{hint}", transient=True, retry_after=wait)
         if response.status_code >= 400:
             raise LLMError(
                 f"Endpoint returned {response.status_code}: {response.text[:500]}",

@@ -150,8 +150,13 @@ There is no free hosting tier with a GPU, so a hosted demo cannot run a local mo
 provider layer means that is only a configuration change: point it at a free
 OpenAI-compatible endpoint instead. [`render.yaml`](render.yaml) is a working blueprint.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/maliijaz/lectern)
+
+That button reads `render.yaml` and builds the lite image. The one thing it cannot do for you
+is the API key — set `LECTERN_LLM_API_KEY` when Render prompts for it. Or by hand:
+
 ```
-push to GitHub  →  render.com  →  New > Blueprint  →  set LECTERN_LLM_API_KEY
+render.com  →  New > Blueprint  →  pick this repo  →  set LECTERN_LLM_API_KEY
 ```
 
 Free endpoints that speak the same protocol, no card required:
@@ -177,8 +182,11 @@ and the command that would enable them, because the capability check is the same
 runs locally.
 
 **If the demo is for other people to use**, set `LECTERN_LLM_API_KEY` to a key you are willing to
-have spent, and watch the rate limits — a free Groq key is roughly 30 requests a minute, and
-one question paper is about twenty.
+have spent, and know what a free key actually buys. Groq's free tier allows 30 requests a minute
+but only **8,000 tokens a minute and 200,000 a day** — and tokens are the limit that bites first.
+One question paper is about twenty calls, so it will be throttled partway through. It still
+finishes: a rate-limited call reads the reset time off the response and waits exactly that long
+rather than guessing. Expect a paper to take minutes, and about ten of them a day from one key.
 
 ---
 

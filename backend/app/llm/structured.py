@@ -151,7 +151,9 @@ async def call_with_retry(
             if not exc.transient or attempt == retries:
                 raise
             last = exc
-            delay = RETRY_BASE_DELAY * (2**attempt)
+            # The backend's own figure wins where it gave one: a rate limiter knows when
+            # its window reopens, and doubling from four seconds does not.
+            delay = exc.retry_after or RETRY_BASE_DELAY * (2**attempt)
             log.warning(
                 "Transient model backend failure (attempt %d/%d), retrying in %.0fs: %s",
                 attempt + 1,

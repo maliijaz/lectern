@@ -123,3 +123,67 @@ async def test_structured_generation_survives_a_transient_failure() -> None:
 def test_errors_default_to_permanent() -> None:
     """Retrying by default would mask real misconfiguration behind a long wait."""
     assert LLMError("something went wrong").transient is False
+
+
+# --- rate limits ---------------------------------------------------------------------
+#
+# The free hosted tier the Render blueprint points at is limited by *tokens* per minute,
+# not requests, so a single question paper trips it and the wait is most of a minute.
+# Exponential backoff from four seconds reaches that only by overshooting, and these
+# endpoints already say how long to wait.
+
+
+def _rate_limited(retry_after: float | None) -> LLMError:
+    return LLMError("Rate limited by the endpoint.", transient=True, retry_after=retry_after)
+
+
+async def test_the_backends_own_wait_is_used_instead_of_backoff(monkeypatch) -> None:
+    slept: list[float] = []
+
+    async def record(delay: float) -> None:
+        slept.append(delay)
+
+    monkeypatch.setattr(structured.asyncio, "sleep", record)
+
+    provider = FlakyProvider([_rate_limited(47.0)])
+    await structured.call_with_retry(provider, [user("hello")])
+
+    assert slept == [47.0], "a 47-second reset should not be met with a 4-second backoff"
+
+
+async def test_backoff_still_applies_when_no_wait_was_advertised(monkeypatch) -> None:
+    slept: list[float] = []
+
+    async def record(delay: float) -> None:
+        slept.append(delay)
+
+    monkeypatch.setattr(structured.asyncio, "sleep", record)
+
+    provider = FlakyProvider([_rate_limited(None), _rate_limited(None)])
+    await structured.call_with_retry(provider, [user("hello")])
+
+    assert slept == [structured.RETRY_BASE_DELAY, structured.RETRY_BASE_DELAY * 2]
+
+
+@pytest.mark.parametrize(
+    ("headers", "expected"),
+    [
+        ({"retry-after": "30"}, 30.0),
+        # Groq's form, which the standard header does not cover.
+        ({"x-ratelimit-reset-tokens": "7.66s"}, 7.66),
+        ({"x-ratelimit-reset-requests": "12s"}, 12.0),
+        # A proxy advertising an hour must not hang a generation job.
+        ({"retry-after": "3600"}, 90.0),
+        # An HTTP-date form is not parsed; the caller falls back to backoff.
+        ({"retry-after": "Wed, 21 Oct 2026 07:28:00 GMT"}, None),
+        ({}, None),
+        ({"retry-after": "0"}, None),
+    ],
+)
+def test_retry_after_headers_are_read(headers: dict, expected: float | None) -> None:
+    import httpx
+
+    from app.llm.openai_compat import _retry_after_seconds
+
+    response = httpx.Response(429, headers=headers)
+    assert _retry_after_seconds(response) == expected

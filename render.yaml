@@ -46,12 +46,21 @@ services:
         sync: false # set it in the dashboard; it must never live in git
 
       # ---- sized for a small, shared box ----------------------------------------
-      # A hosted endpoint has a large context, and auto-sizing only ever reduces, so
-      # this is a plain ceiling here rather than a GPU calculation.
+      # NUM_CTX and AUTO_CONTEXT are read only by the Ollama provider — they size a model
+      # that is being loaded into VRAM, and nothing here loads one. They are set anyway so
+      # the Settings page reports a figure rather than a default that means nothing.
+      #
+      # The limit that actually bites on a free key is tokens per minute. Groq's free tier
+      # allows 8,000 TPM and 200,000 per day, so one question paper — about twenty calls —
+      # will be rate-limited partway through and will finish slowly rather than fail: a 429
+      # carries the reset time and the retry loop waits exactly that long. Budget roughly
+      # ten papers a day from one free key, and expect a paper to take minutes, not seconds.
       - key: LECTERN_LLM_NUM_CTX
         value: "16384"
       - key: LECTERN_LLM_AUTO_CONTEXT
         value: "false"
+      # Generous, because a rate-limited call waits out the limiter's window before it
+      # retries. A short timeout here would turn "slow" into "failed".
       - key: LECTERN_LLM_TIMEOUT
         value: "300"
       # One worker: two generations at once would exhaust 512 MB.

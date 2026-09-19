@@ -67,11 +67,23 @@ class LLMError(AppError):
     #: missing model or a bad API key.
     transient: bool = False
 
+    #: Seconds to wait before retrying, when the backend said so. Rate limiters know when
+    #: their window resets and exponential backoff only guesses at it — a token-per-minute
+    #: limit needs most of a minute, which doubling from a few seconds reaches only by
+    #: overshooting first. None means "no advice given, back off exponentially".
+    retry_after: float | None = None
+
     def __init__(
-        self, message: str, *, detail: dict | None = None, transient: bool = False
+        self,
+        message: str,
+        *,
+        detail: dict | None = None,
+        transient: bool = False,
+        retry_after: float | None = None,
     ) -> None:
         super().__init__(message, detail=detail)
         self.transient = transient
+        self.retry_after = retry_after
 
 
 class LLMUnavailable(LLMError):
