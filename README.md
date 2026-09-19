@@ -1,4 +1,6 @@
-# Teacher Assistant
+# Lectern
+
+> *lectern* — the stand a teacher speaks from.
 
 A self-hostable, fully open-source assistant that turns your source material — or just a topic —
 into finished teaching artifacts: **slide decks, lecture notes and question papers**, plus lesson
@@ -105,13 +107,13 @@ core pinned. Nothing warns you. Measured here on an 8 GB RTX 4060 with qwen3:8b:
 | 12K | 7.20 GB | 87% — spills |
 | 16K | 7.81 GB | 80% — spills badly |
 
-**What the app does.** `TA_LLM_NUM_CTX` is treated as a *ceiling*. On startup the app reads your
+**What the app does.** `LECTERN_LLM_NUM_CTX` is treated as a *ceiling*. On startup the app reads your
 card's VRAM and the model's real size, picks the largest context that keeps the whole model on the
 GPU, and says so in plain language. It also reads Ollama's own report of where the model actually
 ended up, and warns at the top of every page if any of it is on the CPU. Set
-`TA_LLM_AUTO_CONTEXT=false` to use your number exactly — the right choice on a 24 GB card.
+`LECTERN_LLM_AUTO_CONTEXT=false` to use your number exactly — the right choice on a 24 GB card.
 
-**Embeddings too.** `TA_EMBED_DEVICE=auto` puts document indexing on the GPU when there is room,
+**Embeddings too.** `LECTERN_EMBED_DEVICE=auto` puts document indexing on the GPU when there is room,
 which measured **6.6× faster** here (5.9 → 39 passages/sec). It falls back to the CPU automatically
 when the language model has already claimed the VRAM, rather than failing mid-ingest.
 
@@ -149,7 +151,7 @@ provider layer means that is only a configuration change: point it at a free
 OpenAI-compatible endpoint instead. [`render.yaml`](render.yaml) is a working blueprint.
 
 ```
-push to GitHub  →  render.com  →  New > Blueprint  →  set TA_LLM_API_KEY
+push to GitHub  →  render.com  →  New > Blueprint  →  set LECTERN_LLM_API_KEY
 ```
 
 Free endpoints that speak the same protocol, no card required:
@@ -174,7 +176,7 @@ The app does not pretend otherwise: the unavailable features are greyed out with
 and the command that would enable them, because the capability check is the same one that
 runs locally.
 
-**If the demo is for other people to use**, set `TA_LLM_API_KEY` to a key you are willing to
+**If the demo is for other people to use**, set `LECTERN_LLM_API_KEY` to a key you are willing to
 have spent, and watch the rate limits — a free Groq key is roughly 30 requests a minute, and
 one question paper is about twenty.
 
@@ -208,19 +210,19 @@ The CLI runs the same code in-process, so it works with the server stopped. It i
 batch work — ingesting a term's chapters overnight, or generating differentiated worksheets in a loop.
 
 ```bash
-ta status                                   # config, model connection, what is installed
-ta docs add ./chapter3.pdf --subject Biology --grade "Grade 10"
-ta docs search "how does rubisco fix carbon"
+lectern status                                   # config, model connection, what is installed
+lectern docs add ./chapter3.pdf --subject Biology --grade "Grade 10"
+lectern docs search "how does rubisco fix carbon"
 
-ta generate slides  --topic "Photosynthesis" --slides 15 --theme chalkboard --out ./out
-ta generate notes   --doc 6687a695 --depth detailed --out ./out
-ta generate exam    --doc 6687a695 --marks 50 --duration 90 --variants 3 --out ./out
-ta generate worksheet  --topic "Quadratic equations" --questions 15
-ta generate flashcards --doc 6687a695 --cards 40
+lectern generate slides  --topic "Photosynthesis" --slides 15 --theme chalkboard --out ./out
+lectern generate notes   --doc 6687a695 --depth detailed --out ./out
+lectern generate exam    --doc 6687a695 --marks 50 --duration 90 --variants 3 --out ./out
+lectern generate worksheet  --topic "Quadratic equations" --questions 15
+lectern generate flashcards --doc 6687a695 --cards 40
 
-ta list                                     # what you have made
-ta export <artifact-id> -f moodle_xml -f qti --out ./out
-ta formats exam                             # what a paper can be exported as
+lectern list                                     # what you have made
+lectern export <artifact-id> -f moodle_xml -f qti --out ./out
+lectern formats exam                             # what a paper can be exported as
 ```
 
 ---
@@ -234,15 +236,15 @@ The settings worth knowing:
 
 | Setting | What it does |
 |---|---|
-| `TA_LLM_PROVIDER` | `ollama`, `openai_compat`, or `fake` (a deterministic stub used by the tests) |
-| `TA_LLM_MODEL` | The model to use. Bigger is better for exams specifically |
-| `TA_LLM_NUM_CTX` | Context window *ceiling*. Reduced automatically to fit your GPU |
-| `TA_LLM_AUTO_CONTEXT` | Turn off to use `TA_LLM_NUM_CTX` exactly as written |
-| `TA_LLM_THINKING` | Chain-of-thought on reasoning models. Off by default: ~2.4x faster |
-| `TA_EMBED_DEVICE` | `auto`, `cpu`, `cuda` or `mps`. `auto` uses the GPU when there is room |
-| `TA_OCR_ENABLED` | Read scanned PDFs. Slower, but the only way to use a photographed handout |
-| `TA_CHUNK_TOKENS` | Passage size for retrieval. Only affects documents added afterwards |
-| `TA_WORKER_CONCURRENCY` | How many generations run at once |
+| `LECTERN_LLM_PROVIDER` | `ollama`, `openai_compat`, or `fake` (a deterministic stub used by the tests) |
+| `LECTERN_LLM_MODEL` | The model to use. Bigger is better for exams specifically |
+| `LECTERN_LLM_NUM_CTX` | Context window *ceiling*. Reduced automatically to fit your GPU |
+| `LECTERN_LLM_AUTO_CONTEXT` | Turn off to use `LECTERN_LLM_NUM_CTX` exactly as written |
+| `LECTERN_LLM_THINKING` | Chain-of-thought on reasoning models. Off by default: ~2.4x faster |
+| `LECTERN_EMBED_DEVICE` | `auto`, `cpu`, `cuda` or `mps`. `auto` uses the GPU when there is room |
+| `LECTERN_OCR_ENABLED` | Read scanned PDFs. Slower, but the only way to use a photographed handout |
+| `LECTERN_CHUNK_TOKENS` | Passage size for retrieval. Only affects documents added afterwards |
+| `LECTERN_WORKER_CONCURRENCY` | How many generations run at once |
 
 ---
 
@@ -292,7 +294,7 @@ writes a wrong answer key faster is not an upgrade.
 ollama pull <model>
 ```
 
-Then pick it in **Settings**, or set `TA_LLM_MODEL` in `.env`. The context window resizes
+Then pick it in **Settings**, or set `LECTERN_LLM_MODEL` in `.env`. The context window resizes
 itself to whatever keeps the new model wholly on your GPU, so there is nothing else to tune.
 
 Models larger than your card cannot be fixed by configuration. On 8 GB, that rules out the

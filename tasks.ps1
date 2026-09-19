@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Development and setup tasks for Teacher Assistant.
+  Development and setup tasks for Lectern.
 
 .DESCRIPTION
   Deliberately ASCII-only. Windows PowerShell 5.1 reads a .ps1 file as ANSI unless it
@@ -162,7 +162,7 @@ switch ($Task) {
       Push-Location (Join-Path $Root "frontend")
       try { npm run build } finally { Pop-Location }
     }
-    Write-Step "Teacher Assistant on http://127.0.0.1:8000"
+    Write-Step "Lectern on http://127.0.0.1:8000"
     Push-Location (Join-Path $Root "backend")
     try { & $Python -m uvicorn app.main:app --port 8000 } finally { Pop-Location }
   }
@@ -243,7 +243,7 @@ switch ($Task) {
   default {
     Write-Host @"
 
-Teacher Assistant
+Lectern
 
   .\tasks.ps1 setup     Install everything (uses the GPU build of PyTorch when possible)
   .\tasks.ps1 dev       Run the API and the web UI with hot reload

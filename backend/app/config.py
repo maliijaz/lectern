@@ -1,6 +1,6 @@
 """Application configuration.
 
-Values come from environment variables / `.env` (prefix ``TA_``). A subset is also
+Values come from environment variables / `.env` (prefix ``LECTERN_``). A subset is also
 editable at runtime from the Settings page; those overrides live in the ``app_settings``
 table and are merged on top of these defaults by ``app.services.settings``.
 """
@@ -52,17 +52,17 @@ SECRET_FIELDS: frozenset[str] = frozenset({"llm_api_key"})
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="TA_",
+        env_prefix="LECTERN_",
         env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
 
     # ---------- general ----------
-    app_name: str = "Teacher Assistant"
+    app_name: str = "Lectern"
     debug: bool = False
     data_dir: Path = Path("./data")
-    database_url: str = "sqlite+aiosqlite:///./data/teacher_assistant.db"
+    database_url: str = "sqlite+aiosqlite:///./data/lectern.db"
     # NoDecode is load-bearing. Without it pydantic-settings tries to JSON-parse any
     # complex type coming from a .env file *before* validators run, so the documented
     # comma-separated form raises a SettingsError and the app will not start at all.

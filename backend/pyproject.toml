@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "teacher-assistant"
+name = "lectern"
 version = "0.1.0"
 description = "Open-source assistant that turns documents or topics into slides, lecture notes and question papers"
 requires-python = ">=3.11"
@@ -63,7 +63,9 @@ dev = [
 ]
 
 [project.scripts]
-ta = "app.cli.main:app"
+# The full name, plus the two-letter alias that is what anyone actually types.
+lectern = "app.cli.main:app"
+lec = "app.cli.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

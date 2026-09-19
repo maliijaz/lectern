@@ -23,9 +23,9 @@ _sessionmaker: async_sessionmaker[AsyncSession] | None = None
 def _make_engine() -> AsyncEngine:
     settings = get_settings()
     url = settings.database_url
-    # SQL echo is opt-in on its own flag: TA_DEBUG is about application behaviour, and
+    # SQL echo is opt-in on its own flag: LECTERN_DEBUG is about application behaviour, and
     # statement logging is far too noisy to tie to it.
-    echo = os.getenv("TA_SQL_ECHO", "").lower() in ("1", "true", "yes")
+    echo = os.getenv("LECTERN_SQL_ECHO", "").lower() in ("1", "true", "yes")
     kwargs: dict = {"echo": echo, "future": True}
 
     if url.startswith("sqlite"):

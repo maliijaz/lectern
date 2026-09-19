@@ -10,7 +10,7 @@
 #                   still work; document upload reports itself as unavailable rather than
 #                   failing, because the app degrades capability by capability.
 #
-#   docker build --build-arg EXTRAS="" -t teacher-assistant:lite .
+#   docker build --build-arg EXTRAS="" -t lectern:lite .
 
 FROM node:22-slim AS web
 WORKDIR /build
@@ -38,8 +38,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     # Model weights land here; mount it as a volume to avoid re-downloading on every start.
     HF_HOME=/data/.cache/huggingface \
-    TA_DATA_DIR=/data \
-    TA_DATABASE_URL=sqlite+aiosqlite:////data/teacher_assistant.db \
+    LECTERN_DATA_DIR=/data \
+    LECTERN_DATABASE_URL=sqlite+aiosqlite:////data/lectern.db \
     # Overridden by the platform where one assigns a port (Render, Fly, Cloud Run).
     PORT=8000
 

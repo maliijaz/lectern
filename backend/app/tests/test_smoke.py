@@ -83,7 +83,7 @@ def test_the_shipped_env_example_actually_boots(tmp_path) -> None:
 
     This caught a real failure: pydantic-settings JSON-decodes complex fields from a
     dotenv source before validators run, so the documented comma-separated
-    TA_CORS_ORIGINS raised a SettingsError and the app would not start at all. Anyone
+    LECTERN_CORS_ORIGINS raised a SettingsError and the app would not start at all. Anyone
     following the README hit it on their first run.
     """
     from pathlib import Path
@@ -124,7 +124,7 @@ def test_the_database_folder_is_created_if_missing(tmp_path, monkeypatch) -> Non
     nested = tmp_path / "does" / "not" / "exist"
     assert not nested.exists()
 
-    monkeypatch.setenv("TA_DATABASE_URL", f"sqlite+aiosqlite:///{nested.as_posix()}/app.db")
+    monkeypatch.setenv("LECTERN_DATABASE_URL", f"sqlite+aiosqlite:///{nested.as_posix()}/app.db")
     get_settings.cache_clear()
     try:
         session_module._ensure_sqlite_directory()
@@ -137,7 +137,7 @@ def test_directory_creation_ignores_non_sqlite_urls(monkeypatch) -> None:
     from app.config import get_settings
     from app.db import session as session_module
 
-    monkeypatch.setenv("TA_DATABASE_URL", "postgresql+asyncpg://user@host/db")
+    monkeypatch.setenv("LECTERN_DATABASE_URL", "postgresql+asyncpg://user@host/db")
     get_settings.cache_clear()
     try:
         session_module._ensure_sqlite_directory()  # must simply do nothing

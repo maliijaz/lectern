@@ -18,12 +18,12 @@ def _configure_environment() -> Path:
     tmp = Path(tempfile.mkdtemp(prefix="ta-test-"))
     os.environ.update(
         {
-            "TA_DATA_DIR": str(tmp),
-            "TA_DATABASE_URL": f"sqlite+aiosqlite:///{(tmp / 'test.db').as_posix()}",
-            "TA_LLM_PROVIDER": "fake",
-            "TA_LLM_MODEL": "fake-model",
-            "TA_WORKER_CONCURRENCY": "1",
-            "TA_DEBUG": "true",
+            "LECTERN_DATA_DIR": str(tmp),
+            "LECTERN_DATABASE_URL": f"sqlite+aiosqlite:///{(tmp / 'test.db').as_posix()}",
+            "LECTERN_LLM_PROVIDER": "fake",
+            "LECTERN_LLM_MODEL": "fake-model",
+            "LECTERN_WORKER_CONCURRENCY": "1",
+            "LECTERN_DEBUG": "true",
         }
     )
     return tmp

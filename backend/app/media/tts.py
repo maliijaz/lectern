@@ -24,7 +24,7 @@ from app.schemas.deck import Deck, SlideLayout
 log = get_logger(__name__)
 
 #: Voices are ~60 MB ONNX files downloaded separately; see the README.
-VOICE_ENV = "TA_PIPER_VOICE"
+VOICE_ENV = "LECTERN_PIPER_VOICE"
 
 
 def available() -> bool:
@@ -132,7 +132,7 @@ def render_narration(deck: Deck, out_path: Path) -> Path:
                 "",
                 "--",
                 "Audio was not generated because Piper is not installed, or no voice model",
-                "was found. Install Piper and a voice, set TA_PIPER_VOICE to the .onnx file,",
+                "was found. Install Piper and a voice, set LECTERN_PIPER_VOICE to the .onnx file,",
                 "then export the narration again.",
             ]
 

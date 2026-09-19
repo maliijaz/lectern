@@ -11,7 +11,7 @@
 services:
   app:
     build: .
-    image: teacher-assistant:latest
+    image: lectern:latest
     ports:
       - "8000:8000"
     volumes:
@@ -19,15 +19,15 @@ services:
       # the database — lives here. Back this up; the rest is disposable.
       - teacher-data:/data
     environment:
-      TA_DATA_DIR: /data
-      TA_DATABASE_URL: sqlite+aiosqlite:////data/teacher_assistant.db
-      TA_LLM_PROVIDER: ${TA_LLM_PROVIDER:-ollama}
+      LECTERN_DATA_DIR: /data
+      LECTERN_DATABASE_URL: sqlite+aiosqlite:////data/lectern.db
+      LECTERN_LLM_PROVIDER: ${LECTERN_LLM_PROVIDER:-ollama}
       # host.docker.internal reaches an Ollama running on the host machine.
-      TA_LLM_BASE_URL: ${TA_LLM_BASE_URL:-http://host.docker.internal:11434}
-      TA_LLM_MODEL: ${TA_LLM_MODEL:-qwen3:8b}
-      TA_LLM_TIMEOUT: ${TA_LLM_TIMEOUT:-900}
-      TA_WORKER_CONCURRENCY: ${TA_WORKER_CONCURRENCY:-2}
-      TA_CORS_ORIGINS: http://localhost:8000
+      LECTERN_LLM_BASE_URL: ${LECTERN_LLM_BASE_URL:-http://host.docker.internal:11434}
+      LECTERN_LLM_MODEL: ${LECTERN_LLM_MODEL:-qwen3:8b}
+      LECTERN_LLM_TIMEOUT: ${LECTERN_LLM_TIMEOUT:-900}
+      LECTERN_WORKER_CONCURRENCY: ${LECTERN_WORKER_CONCURRENCY:-2}
+      LECTERN_CORS_ORIGINS: http://localhost:8000
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

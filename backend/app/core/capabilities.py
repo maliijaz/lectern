@@ -94,7 +94,7 @@ CAPABILITIES: tuple[Capability, ...] = (
         label="Narration audio",
         # The narration *script* is always produced; only the spoken audio needs Piper.
         enables="Spoken audio for each slide (the written script works without it)",
-        install="Install Piper and a voice, then set TA_PIPER_VOICE to the .onnx file",
+        install="Install Piper and a voice, then set LECTERN_PIPER_VOICE to the .onnx file",
         executables=("piper",),
     ),
 )

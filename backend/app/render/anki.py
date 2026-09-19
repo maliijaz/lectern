@@ -47,8 +47,8 @@ hr#answer { border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }
 
 def _basic_model(genanki):  # noqa: ANN001, ANN202
     return genanki.Model(
-        _stable_id("teacher-assistant", "basic"),
-        "Teacher Assistant — Basic",
+        _stable_id("lectern", "basic"),
+        "Lectern — Basic",
         fields=[
             {"name": "Front"},
             {"name": "Back"},
@@ -74,8 +74,8 @@ def _basic_model(genanki):  # noqa: ANN001, ANN202
 def _reversed_model(genanki):  # noqa: ANN001, ANN202
     """Two cards per note — term→definition and definition→term."""
     return genanki.Model(
-        _stable_id("teacher-assistant", "reversed"),
-        "Teacher Assistant — Reversed",
+        _stable_id("lectern", "reversed"),
+        "Lectern — Reversed",
         fields=[
             {"name": "Front"},
             {"name": "Back"},
@@ -101,8 +101,8 @@ def _reversed_model(genanki):  # noqa: ANN001, ANN202
 
 def _cloze_model(genanki):  # noqa: ANN001, ANN202
     return genanki.Model(
-        _stable_id("teacher-assistant", "cloze"),
-        "Teacher Assistant — Cloze",
+        _stable_id("lectern", "cloze"),
+        "Lectern — Cloze",
         fields=[{"name": "Text"}, {"name": "Extra"}],
         templates=[
             {

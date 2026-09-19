@@ -24,8 +24,8 @@ from rich.table import Table
 from app.core.logging import ensure_utf8_streams, setup_logging
 
 app = typer.Typer(
-    name="ta",
-    help="Teacher Assistant — turn documents or topics into slides, notes and question papers.",
+    name="lectern",
+    help="Lectern — turn documents or topics into slides, notes and question papers.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -115,7 +115,7 @@ def status() -> None:
     settings, probe, context, context_reason, placement = _run(check())
     hardware = hardware_module.refresh()
 
-    table = Table(title="Teacher Assistant", show_header=False, box=None, padding=(0, 2))
+    table = Table(title="Lectern", show_header=False, box=None, padding=(0, 2))
     table.add_row("Data directory", str(settings.data_dir))
     table.add_row("Provider", settings.llm_provider)
     table.add_row("Model", settings.llm_model)
@@ -163,7 +163,7 @@ def serve(
     """Start the web API."""
     import uvicorn
 
-    console.print(f"[bold]Teacher Assistant[/] → http://{host}:{port}  (docs at /docs)")
+    console.print(f"[bold]Lectern[/] → http://{host}:{port}  (docs at /docs)")
     uvicorn.run("app.main:app", host=host, port=port, reload=reload)
 
 

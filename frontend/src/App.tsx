@@ -101,7 +101,7 @@ export default function App() {
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4">
           <NavLink to="/" className="flex items-center gap-2 font-bold shrink-0">
             <span aria-hidden="true">📚</span>
-            <span className="hidden sm:inline">Teacher Assistant</span>
+            <span className="hidden sm:inline">Lectern</span>
           </NavLink>
           <nav className="flex items-center gap-0.5 overflow-x-auto ml-auto">
             {NAV.map((item) => (
@@ -146,7 +146,7 @@ export default function App() {
         className="border-t py-4 text-center text-xs text-[color:var(--color-ink-faint)]"
         style={{ borderColor: "var(--color-line)" }}
       >
-        Teacher Assistant — runs entirely on your machine. Nothing is sent anywhere.
+        Lectern — runs entirely on your machine. Nothing is sent anywhere.
       </footer>
     </div>
   );

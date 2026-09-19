@@ -194,7 +194,7 @@ class OllamaProvider(LLMProvider):
         except httpx.TimeoutException as exc:
             raise LLMError(
                 f"Ollama timed out after {self.timeout:.0f}s. Try a smaller model, "
-                "a shorter document, or raise TA_LLM_TIMEOUT."
+                "a shorter document, or raise LECTERN_LLM_TIMEOUT."
             ) from exc
         except httpx.RemoteProtocolError as exc:
             # Ollama's model runner dropped the connection mid-response — usually memory
